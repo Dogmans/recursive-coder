@@ -71,7 +71,7 @@ def main() -> int:
         try:
             # Use custom direct Transformers model to bypass SmolAgents auto-detection issues
             from custom_model import DirectTransformersModel
-            model = DirectTransformersModel(model_id=model_id)
+            model = DirectTransformersModel(model_id=model_id, quantize=False)  # Disable quantization for now
         except Exception as e:
             print(f"Local model load failed: {e}")
             print("Falling back to hosted model. Set HF_TOKEN to use hosted inference.")
