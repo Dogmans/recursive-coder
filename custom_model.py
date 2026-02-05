@@ -8,7 +8,7 @@ from smolagents.models import Model
 class DirectTransformersModel(Model):
     """Direct Transformers model without SmolAgents auto-detection."""
     
-    def __init__(self, model_id: str = "mistralai/Mistral-7B-Instruct-v0.1", device: str = None, quantize: bool = True):
+    def __init__(self, model_id: str = "microsoft/phi-3-medium-4k-instruct", device: str = None, quantize: bool = True):
         """Initialize model and tokenizer.
         
         Args:
