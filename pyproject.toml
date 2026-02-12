@@ -4,29 +4,25 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "recursive-coder"
-version = "0.1.0"
-description = "Recursive code agent using SmolAgents CodeAgent for hierarchical task decomposition and code generation"
+version = "0.2.0"
+description = "Prompt-driven recursive code agent using SmolAgents CodeAgent"
 requires-python = ">=3.10"
 authors = [
     {name = "Recursive Coder", email = "dev@recursive-coder.local"}
 ]
 
 dependencies = [
-    "pytest>=7.0",
-    "pytest-timeout>=2.1.0",
-    "pydantic>=2.0",
-    "pydantic-settings>=2.0",
     "python-dotenv>=1.0.0",
-    "requests>=2.31.0",
 ]
 
 [project.optional-dependencies]
 smol = [
     "smolagents[toolkit,transformers]",
+    "torch",
 ]
 dev = [
     "pytest>=7.0",
-    "pytest-cov>=4.0",
+    "pytest-timeout>=2.1.0",
     "black>=23.0",
     "ruff>=0.1.0",
 ]
@@ -34,8 +30,7 @@ dev = [
 [tool.pytest.ini_options]
 minversion = "7.0"
 addopts = "-v --tb=short"
-testpaths = ["tests"]
-python_files = ["test_*.py", "*_test.py"]
+testpaths = ["agents"]
 
 [tool.black]
 line-length = 100
