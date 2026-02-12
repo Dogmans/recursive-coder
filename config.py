@@ -13,6 +13,7 @@ REFERENCE_DIR = WORKSPACE_ROOT / "_reference"
 PROMPT_FILE = WORKSPACE_ROOT / "prompt.md"
 
 # Model (overridable via environment)
-MODEL_ID = os.getenv("SMOL_MODEL_ID", "microsoft/phi-3-mini-4k-instruct")
+MODEL_ID = os.getenv("SMOL_MODEL_ID", "Qwen/Qwen2.5-Coder-32B-Instruct")
+RUN_LOCAL = os.getenv("SMOL_RUN_LOCAL", "false").lower() in {"1", "true", "yes"}
 QUANTIZE = os.getenv("SMOL_QUANTIZE", "true").lower() in {"1", "true", "yes"}
 MAX_STEPS = int(os.getenv("SMOL_MAX_STEPS", "30"))

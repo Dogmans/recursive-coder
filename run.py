@@ -13,6 +13,31 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+def _load_model():
+    """Load the model — API by default, local if SMOL_RUN_LOCAL=true."""
+    model_id = os.getenv("SMOL_MODEL_ID", "Qwen/Qwen2.5-Coder-32B-Instruct")
+    run_local = os.getenv("SMOL_RUN_LOCAL", "false").strip().lower() in {"1", "true", "yes"}
+
+    if run_local:
+        from custom_model import DirectTransformersModel
+
+        quantize = os.getenv("SMOL_QUANTIZE", "true").lower() in {"1", "true", "yes"}
+        print(f"Loading local model: {model_id} (quantize={quantize})")
+        return DirectTransformersModel(model_id=model_id, quantize=quantize), model_id
+
+    # Default: HF Inference API (free tier, needs HF_TOKEN)
+    from smolagents import InferenceClientModel
+
+    token = os.getenv("HF_TOKEN")
+    if not token:
+        print("HF_TOKEN not set. Get a free token at https://huggingface.co/settings/tokens")
+        print("Add to .env:  HF_TOKEN=hf_...")
+        sys.exit(1)
+
+    print(f"Using HF Inference API: {model_id}")
+    return InferenceClientModel(model_id=model_id, token=token), model_id
+
+
 def main() -> int:
     """Launch the CodeAgent with the system prompt and task."""
 
@@ -44,15 +69,8 @@ def main() -> int:
             reference_context += ref_file.read_text(encoding="utf-8").strip()
 
     # --- Model setup ---
-    model_id = os.getenv("SMOL_MODEL_ID", "microsoft/phi-3-mini-4k-instruct")
-
     try:
-        from custom_model import DirectTransformersModel
-
-        model = DirectTransformersModel(
-            model_id=model_id,
-            quantize=os.getenv("SMOL_QUANTIZE", "true").lower() in {"1", "true", "yes"},
-        )
+        model, model_id = _load_model()
     except Exception as exc:
         print(f"Model load failed: {exc}")
         return 1
