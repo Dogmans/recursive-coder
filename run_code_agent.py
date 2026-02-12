@@ -57,6 +57,8 @@ def main() -> int:
         "get_child_steps",
         "run_managed_agent",
         "reset_child_agent",
+        "get_child_diagnostics",
+        "retry_child_agent",
         "report_child_progress",
         "merge_child_requirements",
     }

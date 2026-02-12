@@ -63,8 +63,9 @@ recursive-coder/
 3. **Spawns child agents** in subfolders for complex subtasks
 4. **Generates code** (`solution.py`) with typed functions
 5. **Validates with tests** using pytest
-6. **Manages errors** via `error.txt` and `log.txt`
-7. **Enables integration** with SmolAgents CodeAgent
+6. **Diagnoses failures** and retries children with augmented context
+7. **Manages errors** via `error.txt` and `log.txt`
+8. **Enables integration** with SmolAgents CodeAgent
 
 ### Task Decomposition Flow
 
@@ -143,13 +144,18 @@ wrapper = RecursiveCodeAgent(agent)
 # Create tools for CodeAgent
 tools = create_codeagent_tools(wrapper)
 
-# Available tools:
-# - decompose_task
-# - create_subtask
-# - submit_solution
-# - get_child_solution
-# - execute_child_function
-# - report_child_progress
+# Available tools (11 total):
+# - decompose_task           → plan subtasks
+# - create_subtask           → spawn child agents
+# - submit_solution          → save code + tests, run pytest
+# - list_managed_agents      → list children and status
+# - get_child_steps          → view child execution log
+# - run_managed_agent        → execute child end-to-end
+# - report_child_progress    → check child status & errors
+# - get_child_diagnostics    → deep inspect child (code, tests, errors, history)
+# - retry_child_agent        → re-run failing child with guidance
+# - reset_child_agent        → destroy/recreate child (preserve history)
+# - merge_child_requirements → collect child dependencies
 ```
 
 ### AgentLogger (`logger.py`)
@@ -244,17 +250,35 @@ if result["success"]:
 ### Call Child Functions
 
 ```python
-# Get function info
-info = wrapper.get_child_info("data_processing")
-for func_name, details in info.items():
-    print(f"{func_name}: {details['signature']}")
+# Check child status and diagnostics
+diag = wrapper.get_child_diagnostics("data_processing")
+print(diag["current_code"])       # Latest solution.py
+print(diag["test_output"])        # Fresh pytest output
+print(diag["attempt_history"])    # All previous attempts
 
-# Execute function
-result = wrapper.execute_child_function(
+# Re-run a failing child with revised instructions
+result = wrapper.retry_child_agent(
     child_name="data_processing",
-    function_name="process_items",
-    items=[1, 2, 3]
+    revised_instructions="Handle empty lists by returning {}.",
+    max_retries=3
 )
+```
+
+### Retry Flow (Diagnose → Retry → Escalate)
+
+```python
+# 1. Diagnose
+diag = wrapper.get_child_diagnostics("task_parser")
+if diag["has_errors"]:
+    # 2. Retry with guidance
+    result = wrapper.retry_child_agent(
+        child_name="task_parser",
+        revised_instructions="Fix the off-by-one error in parse_line().",
+        max_retries=3
+    )
+    if not result["success"]:
+        # 3. Escalate — full reset or absorb task
+        wrapper.reset_child_agent("task_parser", preserve_history=True)
 ```
 
 ### SmolAgents Integration
@@ -507,6 +531,12 @@ Shows:
 progress = wrapper.report_child_progress("task_subtask")
 if progress["has_errors"]:
     print(progress["error_summary"])
+    # Use the retry pattern:
+    diag = wrapper.get_child_diagnostics("task_subtask")
+    result = wrapper.retry_child_agent(
+        child_name="task_subtask",
+        revised_instructions="Fix: " + diag["error_summary"]
+    )
 ```
 
 ### Timeout
@@ -605,6 +635,13 @@ Each Agent:
   - Runs pytest
   - Logs to log.txt/error.txt
   - Returns results via Python introspection
+
+On Failure (Retry Loop):
+  1. Parent calls get_child_diagnostics()
+  2. Parent calls retry_child_agent() with guidance
+  3. Child re-runs with augmented prompt (prev code + errors)
+  4. Repeat up to max_retries times
+  5. Escalate via reset_child_agent() if all retries fail
 ```
 
 ## ✅ Implementation Status
@@ -616,6 +653,8 @@ Each Agent:
 - ✅ Function discovery via inspect
 - ✅ Child agent spawning
 - ✅ Pytest integration
+- ✅ Iterative retry loop with attempt history
+- ✅ Child diagnostics and deep inspection
 - ✅ Comprehensive documentation
 - ✅ Complete examples
 - ✅ Validation script

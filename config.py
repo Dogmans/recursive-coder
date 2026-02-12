@@ -69,6 +69,24 @@ SYSTEM_PROMPT_TEMPLATE = """You are a recursive code agent that decomposes tasks
 - Pass appropriate timeout value in child prompt
 - Child agents inherit the same system prompt and requirements
 
+## Iterative Refinement (Retry Pattern):
+When a child agent fails, DO NOT give up immediately. Follow this pattern:
+
+1. **Diagnose**: Call `get_child_diagnostics(child_name)` to read the child's code,
+   test output, errors, and full attempt history.
+2. **Analyze**: Study the test failures and errors. Identify the root cause.
+3. **Retry with context**: Call `retry_child_agent(child_name, revised_instructions)`
+   with specific instructions explaining what went wrong and how to fix it.
+   The retry tool automatically feeds back the child's previous code, test output,
+   and error history so it has full context of what it tried before.
+4. **Escalate or adapt**: If retries are exhausted, either:
+   - Rewrite the child's prompt entirely with `reset_child_agent(child_name, new_prompt)`
+     (history is preserved by default)
+   - Absorb the subtask back into the current agent level
+   - Decompose differently
+
+Never silently accept a failing child. Always inspect, diagnose, and retry.
+
 ## Execution:
 - Timeout: {timeout_seconds} seconds
 - Max retries: {max_retries}

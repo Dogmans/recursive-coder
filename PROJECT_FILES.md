@@ -33,10 +33,13 @@ Core recursive agent implementation:
 ### `code_agent_integration.py`
 Integration layer for SmolAgents CodeAgent:
 - `RecursiveCodeAgent` wrapper class
-- Tool definitions for CodeAgent (`decompose_task`, `create_subtask`, etc.)
+- Tool definitions for CodeAgent (`decompose_task`, `create_subtask`, `submit_solution`, `list_managed_agents`, `get_child_steps`, `run_managed_agent`, `report_child_progress`, `get_child_diagnostics`, `retry_child_agent`, `reset_child_agent`, `merge_child_requirements`)
+- Attempt history tracking across child retries
+- `get_child_diagnostics()`: deep inspection of child code, tests, errors, logs, and attempt history
+- `retry_child_agent()`: iterative re-run of failing children with augmented prompts (previous code + test failures + parent guidance)
+- `reset_child_agent()`: destroy and recreate a child, optionally preserving attempt history
 - Solution submission and validation
-- Child function execution
-- `create_codeagent_tools()` function to expose tools
+- `create_codeagent_tools()` function to expose all 11 tools
 
 ## Documentation
 
@@ -212,7 +215,8 @@ recursive-coder/
 4. Generate `solution.py` with typed functions
 5. Generate `test_solution.py` with pytest tests
 6. Run tests and validate
-7. Parent imports and calls child functions
+7. If child fails: diagnose → retry with guidance → escalate
+8. Parent imports and calls child functions
 
 ### Timeout Strategy
 - Parents estimate child complexity
@@ -222,9 +226,12 @@ recursive-coder/
 
 ### Error Handling
 - Child fails → errors written to `error.txt`
-- Parent checks child status before importing
+- Parent diagnoses child with `get_child_diagnostics()`
+- Parent retries child with `retry_child_agent()` (up to max_retries)
+- Each attempt recorded in `attempt_history` with code, test output, and errors
 - Timeouts caught and logged
 - Test failures recorded and reported
+- If retries exhausted: `reset_child_agent()` with `preserve_history=True`, or parent absorbs the task
 
 ## File Dependencies
 

@@ -77,14 +77,17 @@ Integration wrapper for SmolAgents CodeAgent that exposes:
 - Function execution on child solutions
 
 **Tools for CodeAgent:**
-- `decompose_task`: Analyze task complexity
-- `create_subtask`: Spawn child agents
-- `submit_solution`: Save and validate generated code
-- `get_child_solution`: Import child's solution module
-- `get_child_info`: Introspect child's functions
-- `execute_child_function`: Call functions from child's solution
-- `report_child_progress`: Check child status
-- `merge_child_requirements`: Merge child requirements into parent
+- `decompose_task`: Analyze task complexity and plan subtasks
+- `create_subtask`: Spawn child agents in dedicated folders
+- `submit_solution`: Save generated code and tests, run pytest validation
+- `list_managed_agents`: List all child agents and their current status
+- `get_child_steps`: View a child agent's execution log and progress
+- `run_managed_agent`: Execute a child agent end-to-end, run its tests, and record the attempt
+- `report_child_progress`: Check child status including errors and test results
+- `get_child_diagnostics`: Deep inspection of a child — reads code, tests, errors, logs, and attempt history; runs a fresh pytest
+- `retry_child_agent`: Iteratively re-run a failing child with augmented context (previous code, test failures, revised instructions)
+- `reset_child_agent`: Destroy and recreate a child agent (optionally preserving attempt history)
+- `merge_child_requirements`: Merge child `requirements.txt` into parent
 
 ### Configuration (config.py)
 
@@ -252,7 +255,7 @@ child = agent.create_child_agent(
 )
 ```
 
-## Error Handling
+## Error Handling & Iterative Refinement
 
 ### Error Files
 
@@ -267,8 +270,39 @@ Parent agents check child status:
 progress = code_agent_wrapper.report_child_progress("subtask_name")
 if progress["has_errors"]:
     error_msg = progress["error_summary"]
-    # Handle error
+    # Handle error — see Retry Pattern below
 ```
+
+### Retry Pattern (Diagnose → Retry → Escalate)
+
+When a child agent fails, the parent follows a structured recovery loop:
+
+1. **Diagnose** — call `get_child_diagnostics(child_name)` to inspect the child's code, test output, error log, and full attempt history.
+2. **Retry** — call `retry_child_agent(child_name, revised_instructions, max_retries=3)` which rebuilds the prompt with previous code + test failures + parent guidance, then re-runs the child.
+3. **Escalate** — if retries are exhausted, call `reset_child_agent(child_name, preserve_history=True)` for a clean slate (keeping history), or absorb the subtask into the parent.
+
+```python
+# 1. Diagnose
+diag = code_agent_wrapper.get_child_diagnostics("task_parser")
+print(diag["test_output"])       # Latest pytest output
+print(diag["attempt_history"])   # All previous attempts
+
+# 2. Retry with guidance
+result = code_agent_wrapper.retry_child_agent(
+    child_name="task_parser",
+    revised_instructions="Fix the off-by-one error in parse_line(). "
+                         "The delimiter should split on commas, not spaces.",
+    max_retries=3
+)
+
+if result["success"]:
+    print("Child recovered!")
+else:
+    # 3. Escalate — full reset or absorb
+    code_agent_wrapper.reset_child_agent("task_parser", preserve_history=True)
+```
+
+Each attempt is recorded in `attempt_history` so the parent (and descendant retries) have full visibility into what was tried and why it failed.
 
 ### Timeout Detection
 
@@ -385,6 +419,9 @@ This will:
 6. **Error handling**: Log errors clearly for parent visibility
 7. **Modular functions**: Each function should do one thing well
 8. **Return type clarity**: Ensure return types match what parent expects
+9. **Never silently accept failure**: Always diagnose a failing child before moving on
+10. **Use the retry loop**: Call `get_child_diagnostics` → `retry_child_agent` → `reset_child_agent` rather than giving up on first failure
+11. **Provide revised instructions**: When retrying, tell the child *what went wrong* and *how to fix it* — don't just re-run blindly
 
 ## Troubleshooting
 
@@ -416,6 +453,8 @@ pip install pytest pytest-timeout
 
 ## Future Enhancements
 
+- [x] Iterative retry loop with attempt history
+- [x] Child diagnostics and deep inspection
 - [ ] Parallel child agent execution
 - [ ] Caching of intermediate results
 - [ ] Agent checkpointing and resume
