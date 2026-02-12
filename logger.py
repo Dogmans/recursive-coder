@@ -1,6 +1,7 @@
 """Logging utilities for recursive code agent."""
 
 import json
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -9,6 +10,15 @@ from typing import Optional
 
 class AgentLogger:
     """Logger for agent operations with both file and console output."""
+
+    _COLOR_MAP = {
+        "INFO": "\x1b[36m",
+        "WARNING": "\x1b[33m",
+        "DEBUG": "\x1b[35m",
+        "ERROR": "\x1b[31m",
+        "CRITICAL": "\x1b[31;1m",
+    }
+    _COLOR_RESET = "\x1b[0m"
 
     def __init__(self, agent_dir: Path, agent_name: str = "Agent"):
         self.agent_dir = Path(agent_dir)
@@ -36,7 +46,12 @@ class AgentLogger:
         # Write to console
         if console:
             prefix = f"[{self.agent_name}] "
-            print(prefix + log_entry.rstrip(), file=sys.stdout)
+            use_color = os.getenv("AGENT_COLOR", "").strip().lower() in {"1", "true", "yes"}
+            if use_color and level in self._COLOR_MAP:
+                colored = f"{self._COLOR_MAP[level]}{prefix}{log_entry.rstrip()}{self._COLOR_RESET}"
+                print(colored, file=sys.stdout)
+            else:
+                print(prefix + log_entry.rstrip(), file=sys.stdout)
 
     def info(self, message: str, console: bool = True):
         """Log info message."""

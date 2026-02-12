@@ -94,8 +94,10 @@ class DirectTransformersModel(Model):
             if isinstance(inputs[key], torch.Tensor):
                 inputs[key] = inputs[key].to(next(self.model.parameters()).device)
         
+        print(f"[Model] Generating response ({generation_kwargs['max_new_tokens']} max tokens)...", flush=True)
         with torch.no_grad():
             outputs = self.model.generate(**inputs, **generation_kwargs)
+        print(f"[Model] Generation complete.", flush=True)
         
         result = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
         # Remove the prompt from the output

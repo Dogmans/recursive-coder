@@ -68,6 +68,11 @@ class RecursiveAgent:
             return prompt
         else:
             self.logger.info(f"No prompt.txt found at {self.agent_dir}")
+            if not sys.stdin.isatty():
+                raise RuntimeError(
+                    f"Missing prompt.txt at {self.agent_dir}. "
+                    "Create prompt.txt before running a non-interactive agent."
+                )
             print(f"\n{'='*60}")
             print(f"Agent: {self.agent_name}")
             print(f"Location: {self.agent_dir}")

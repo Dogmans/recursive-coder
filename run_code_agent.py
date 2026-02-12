@@ -1,8 +1,9 @@
 """Run the RecursiveCodeAgent with smolagents CodeAgent."""
 
 import os
+import signal
 import sys
-from pathlib import Path
+import traceback
 
 from dotenv import load_dotenv
 
@@ -38,8 +39,10 @@ def main() -> int:
         max_retries=config.DEFAULT_MAX_RETRIES,
     )
 
-    wrapper = RecursiveCodeAgent(agent)
-    tools = create_codeagent_tools(wrapper)
+    def handle_sigint(signum, frame) -> None:
+        agent.logger.error(f"Received SIGINT (signal {signum}).")
+
+    signal.signal(signal.SIGINT, handle_sigint)
 
     # Add web search tool for external info
     smol_tools = [DuckDuckGoSearchTool()]
@@ -50,13 +53,13 @@ def main() -> int:
         "decompose_task",
         "create_subtask",
         "submit_solution",
-        "get_child_solution",
-        "get_child_info",
+        "list_managed_agents",
+        "get_child_steps",
+        "run_managed_agent",
+        "reset_child_agent",
         "report_child_progress",
         "merge_child_requirements",
     }
-
-    wrapped_tools = [tool(fn) for name, fn in tools.items() if name in allowed_tool_names]
 
     # Load environment variables from .env if present
     try:
@@ -80,12 +83,20 @@ def main() -> int:
         print(f"Local model load failed: {e}")
         return 1
 
+    wrapper = RecursiveCodeAgent(agent, model=model)
+    tools = create_codeagent_tools(wrapper)
+    wrapped_tools = [tool(fn) for name, fn in tools.items() if name in allowed_tool_names]
+
     code_agent = CodeAgent(
         tools=[*smol_tools, *wrapped_tools],
         model=model,
-        system_prompt=wrapper.get_system_prompt(),
         max_steps=10,
+        verbosity_level=2,  # Show step-by-step progress
+        managed_agents=wrapper.managed_agents,
     )
+    
+    # Add system prompt to the initial message
+    system_prompt = wrapper.get_system_prompt()
 
     prompt = wrapper.get_user_prompt()
     directive = (
@@ -93,7 +104,15 @@ def main() -> int:
         "`submit_solution(code, test_code)` to write solution.py and test_solution.py "
         "in your agent folder. Use requirements.txt for any non-stdlib deps."
     )
-    result = code_agent.run(prompt + directive)
+    
+    print("\n" + "="*70)
+    print("STARTING CODE AGENT")
+    print("="*70)
+    print(f"Prompt: {prompt[:100]}...")
+    print("="*70 + "\n")
+
+    full_prompt = system_prompt + "\n\n" + prompt + directive
+    result = code_agent.run(full_prompt)
     print(result)
     return 0
 
