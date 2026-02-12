@@ -86,6 +86,7 @@ def main() -> int:
         additional_authorized_imports=[
             "subprocess", "pathlib", "json", "importlib",
             "inspect", "datetime", "re", "os", "sys",
+            "requests", "urllib", "http", "io",
         ],
     )
 
