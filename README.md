@@ -58,13 +58,44 @@ recursive-coder/
 
 ## Configuration
 
-All configuration is via environment variables (or `.env` file):
+All configuration is via environment variables (or `.env` file).
+
+### Provider selection
+
+Set `SMOL_PROVIDER` to choose your model endpoint:
+
+| Provider | `SMOL_PROVIDER` | Token env var | Example `SMOL_MODEL_ID` |
+|----------|----------------|---------------|-------------------------|
+| GitHub Models | `github` | `GITHUB_TOKEN` | `gpt-4o`, `o3-mini`, `DeepSeek-R1` |
+| HuggingFace | `huggingface` | `HF_TOKEN` | `Qwen/Qwen2.5-Coder-32B-Instruct` |
+| OpenAI | `openai` | `OPENAI_API_KEY` | `gpt-4o`, `o3-mini` |
+| Local GPU | `local` | — | `microsoft/phi-3-mini-4k-instruct` |
+
+### Switching providers
+
+Edit your `.env`:
+
+```bash
+# Use GitHub Models
+SMOL_PROVIDER=github
+SMOL_MODEL_ID=gpt-4o
+GITHUB_TOKEN=ghp_...
+
+# Or HuggingFace
+SMOL_PROVIDER=huggingface
+SMOL_MODEL_ID=Qwen/Qwen2.5-Coder-32B-Instruct
+HF_TOKEN=hf_...
+```
+
+### All variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `SMOL_MODEL_ID` | `microsoft/phi-3-mini-4k-instruct` | HuggingFace model ID |
-| `SMOL_QUANTIZE` | `true` | Use float16/quantization on CUDA |
+| `SMOL_PROVIDER` | `huggingface` | Model endpoint: `github`, `huggingface`, `openai`, `local` |
+| `SMOL_MODEL_ID` | *(per provider)* | Model name/ID |
+| `SMOL_API_BASE` | *(per provider)* | Override the default API base URL |
 | `SMOL_MAX_STEPS` | `30` | Max reasoning steps for the agent |
+| `SMOL_QUANTIZE` | `true` | Use float16/quantization (local only) |
 
 ## The System Prompt
 
@@ -96,7 +127,9 @@ Currently included:
 ### Change the model
 
 ```bash
-export SMOL_MODEL_ID="meta-llama/Llama-3.1-8B-Instruct"
+# Switch to a different GitHub Models model
+export SMOL_PROVIDER=github
+export SMOL_MODEL_ID=o3-mini
 python run.py
 ```
 
@@ -108,9 +141,15 @@ Edit `prompt.md`. That's it. Want stricter testing? Add rules. Want different fi
 
 Create `_reference/your-topic.md` and it's automatically picked up.
 
-### Use an API model instead of local
+### Use a custom OpenAI-compatible endpoint
 
-Set appropriate env vars for the SmolAgents `InferenceClientModel` and modify `run.py` to use it instead of `DirectTransformersModel`.
+```bash
+export SMOL_PROVIDER=openai
+export SMOL_API_BASE=http://localhost:11434/v1   # e.g. Ollama
+export SMOL_MODEL_ID=llama3
+export OPENAI_API_KEY=unused
+python run.py
+```
 
 ## What Got Removed (and Why)
 

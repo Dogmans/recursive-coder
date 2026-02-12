@@ -8,34 +8,71 @@ import os
 import sys
 from pathlib import Path
 
+# Fix Windows console encoding for Rich/smolagents Unicode output
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+
 from dotenv import load_dotenv
 
 load_dotenv()
 
 
 def _load_model():
-    """Load the model — API by default, local if SMOL_RUN_LOCAL=true."""
-    model_id = os.getenv("SMOL_MODEL_ID", "Qwen/Qwen2.5-Coder-32B-Instruct")
-    run_local = os.getenv("SMOL_RUN_LOCAL", "false").strip().lower() in {"1", "true", "yes"}
+    """Load the model based on SMOL_PROVIDER setting.
 
-    if run_local:
+    Supported providers (set via SMOL_PROVIDER env var):
+        github      – GitHub Models (OpenAI-compatible, needs GITHUB_TOKEN)
+        huggingface – HF Inference API (needs HF_TOKEN)
+        openai      – OpenAI API (needs OPENAI_API_KEY)
+        local       – Local HuggingFace model on GPU/CPU
+
+    Returns:
+        (model, model_id) tuple for CodeAgent.
+    """
+    from config import PROVIDER, MODEL_ID, API_BASE, API_TOKEN, QUANTIZE
+
+    if PROVIDER == "local":
         from custom_model import DirectTransformersModel
 
-        quantize = os.getenv("SMOL_QUANTIZE", "true").lower() in {"1", "true", "yes"}
-        print(f"Loading local model: {model_id} (quantize={quantize})")
-        return DirectTransformersModel(model_id=model_id, quantize=quantize), model_id
+        print(f"Loading local model: {MODEL_ID} (quantize={QUANTIZE})")
+        return DirectTransformersModel(model_id=MODEL_ID, quantize=QUANTIZE), MODEL_ID
 
-    # Default: HF Inference API (free tier, needs HF_TOKEN)
-    from smolagents import InferenceClientModel
+    if PROVIDER == "huggingface":
+        from smolagents import InferenceClientModel
 
-    token = os.getenv("HF_TOKEN")
-    if not token:
-        print("HF_TOKEN not set. Get a free token at https://huggingface.co/settings/tokens")
-        print("Add to .env:  HF_TOKEN=hf_...")
-        sys.exit(1)
+        if not API_TOKEN:
+            print("HF_TOKEN not set. Get a free token at https://huggingface.co/settings/tokens")
+            print("Add to .env:  HF_TOKEN=hf_...")
+            sys.exit(1)
 
-    print(f"Using HF Inference API: {model_id}")
-    return InferenceClientModel(model_id=model_id, token=token), model_id
+        print(f"Using HF Inference API: {MODEL_ID}")
+        return InferenceClientModel(model_id=MODEL_ID, token=API_TOKEN), MODEL_ID
+
+    # github / openai / any OpenAI-compatible endpoint
+    if PROVIDER in {"github", "openai"}:
+        from smolagents import OpenAIServerModel
+
+        if not API_TOKEN:
+            token_var = "GITHUB_TOKEN" if PROVIDER == "github" else "OPENAI_API_KEY"
+            print(f"{token_var} not set. Add it to your .env file.")
+            sys.exit(1)
+
+        base = API_BASE or (
+            "https://models.inference.ai.azure.com"
+            if PROVIDER == "github"
+            else "https://api.openai.com/v1"
+        )
+        print(f"Using {PROVIDER} endpoint: {base}")
+        print(f"Model: {MODEL_ID}")
+        return (
+            OpenAIServerModel(model_id=MODEL_ID, api_base=base, api_key=API_TOKEN),
+            MODEL_ID,
+        )
+
+    print(f"Unknown provider '{PROVIDER}'. Use one of: github, huggingface, openai, local")
+    sys.exit(1)
 
 
 def main() -> int:

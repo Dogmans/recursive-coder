@@ -18,6 +18,7 @@ dependencies = [
 [project.optional-dependencies]
 smol = [
     "smolagents[toolkit,transformers]",
+    "openai>=1.0.0",
     "torch",
 ]
 dev = [

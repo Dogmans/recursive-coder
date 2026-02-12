@@ -111,9 +111,17 @@ This automatic retry loop means the agent can self-correct without external scaf
 ## Model Options
 
 ```python
-# API-based model (OpenAI, Anthropic, etc.)
+# GitHub Models / OpenAI / any OpenAI-compatible endpoint
+from smolagents import OpenAIServerModel
+model = OpenAIServerModel(
+    model_id="gpt-4o",
+    api_base="https://models.inference.ai.azure.com",
+    api_key="ghp_...",
+)
+
+# HuggingFace Inference API
 from smolagents import InferenceClientModel
-model = InferenceClientModel(model_id="gpt-4")
+model = InferenceClientModel(model_id="Qwen/Qwen2.5-Coder-32B-Instruct", token="hf_...")
 
 # Local transformers model
 from custom_model import DirectTransformersModel

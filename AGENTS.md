@@ -37,7 +37,20 @@ pyproject.toml      # Dependencies and tool config
 | System prompt | `prompt.md` | Tells agent how to structure output, test, decompose, retry, log |
 | Reference docs | `_reference/*.md` | API docs and conventions injected into agent context |
 | Model wrapper | `custom_model.py` | Local HuggingFace model with quantization support |
-| Config | `config.py` | Model ID, paths — all overridable via env vars |
+| Config | `config.py` | Provider selection, model ID, API base/token — all from env vars |
+
+## Providers
+
+Switch providers by setting `SMOL_PROVIDER` in `.env`:
+
+| Provider | `SMOL_PROVIDER` | Token env var | Default model | Notes |
+|----------|----------------|---------------|---------------|-------|
+| GitHub Models | `github` | `GITHUB_TOKEN` | `gpt-4o` | OpenAI-compatible endpoint at `models.inference.ai.azure.com` |
+| HuggingFace | `huggingface` | `HF_TOKEN` | `Qwen/Qwen2.5-Coder-32B-Instruct` | Free inference API |
+| OpenAI | `openai` | `OPENAI_API_KEY` | `gpt-4o` | Direct OpenAI API |
+| Local GPU | `local` | — | `microsoft/phi-3-mini-4k-instruct` | Needs torch + VRAM |
+
+Set `SMOL_API_BASE` to override the default endpoint URL for any provider.
 
 ## Code Style
 - Python 3.10+ with type hints on all functions
@@ -50,6 +63,8 @@ The agent writes and runs its own tests (pytest) as part of execution. There are
 
 ## Pitfalls
 - `agents/root/prompt.txt` must exist before running — the launcher won't prompt interactively
-- `custom_model.py` requires `torch` and `transformers` — install via `pip install -e .[smol]`
+- `custom_model.py` requires `torch` and `transformers` — only needed for `SMOL_PROVIDER=local`
 - The agent's working directory is `agents/root/` — it writes files relative to there
 - Reference docs must be `.md` files in `_reference/` to be auto-loaded
+- `SMOL_RUN_LOCAL` is deprecated — use `SMOL_PROVIDER=local` instead
+- GitHub Models requires a GitHub PAT with Copilot access; rate limits vary by plan
